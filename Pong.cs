@@ -4,6 +4,7 @@ class Pong
 // Pong es una clase porque define las propiedades y los comportamientos de los objetos.
 
 {
+    public static bool quit;
     public static void Main()
     // Main es un static method.
     // Un static method o variable pertenece a una clase y no a una instancia, se puede usar sin crear un objeto.
@@ -15,7 +16,7 @@ class Pong
         // Esto nos permite acceder y modificar los atributos y métodos de estos objetos.
 
         // while es un loop porque se llama cada frame mientras se cumpla su condición.
-        while (Raylib.WindowShouldClose() == false)
+        while (!Raylib.WindowShouldClose() && !quit)
         {
             Raylib.ClearBackground(bgColor);
 
@@ -27,11 +28,6 @@ class Pong
 
             Raylib.EndDrawing();
         }
-
-        // if (condición)
-        // {
-        // Esto es un if statement. Se llama una vez cuando se cumple su condición.
-        // }
     }
 
     // Main es un método que forma parte de la clase Pong.

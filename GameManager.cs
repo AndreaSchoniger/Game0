@@ -33,7 +33,7 @@ public class GameManager
         }
         else
         {
-            Raylib.CloseWindow(); // Cerrar la ventana si Player muere.
+            Pong.quit = true;
         }
     }
 
