@@ -3,9 +3,25 @@ using Raylib_cs;
 
 public class Enemy
 {
-    public Vector2 pos = new(150, 200);
-    float speed = 150; // Un poco más lento que el Player.
-    float stopDis = 50; // Distancia mínima para dejar de seguir al Player.
+    public enum State
+    {
+        Idle, Chase, Attack, Defeat
+    }
+
+    public enum AttackState
+    {
+        Cooldown, // etc...
+    }
+
+    public Player m_Target; // una posible referencia a cualquier m_Target.
+
+    public State m_State = State.Idle;
+    public AttackState m_AttackState = AttackState.Cooldown;
+    public State m_PrevState = State.Idle;
+
+    public Vector2 m_Pos = new(150, 200);
+    float speed = 150; // Un poco más lento que el m_Target.
+    float m_StopDis = 50; // Distancia mínima para dejar de seguir al m_Target.
 
     public int maxHealth = 80;
     public int currentHealth = 80;
@@ -13,93 +29,126 @@ public class Enemy
     float attackDistance = 70;
     int attackDamage = 20;
     float attackCooldown = 1.0f;
-    float currentCooldown = 0;
-    bool isAttacking = false;
+    float m_CurrAttackCooldown = 0;
     float attackDuration = 0.5f;
-    float currentAttackTime = 0;
+    float m_CurrAttackDuration = 0;
 
-    public void Draw()
+    // ----------------- UPDATE --------------------
+
+    public void Update()
     {
-        Raylib.DrawRectangle((int)pos.X, (int)pos.Y, 20, 50, new Color(55, 170, 200, 255));
-        
-        DrawHealthBar();
-
-        if (isAttacking)
+        if (m_Target == null)
         {
-            DrawSword();
+            m_State = State.Idle;
+        }
+
+        if (m_State != m_PrevState)
+        {
+            // hacer cualquier cosa que implique un cambio de estado
+            m_PrevState = m_State;
+        }
+
+        // State machine
+        switch (m_State)
+        {
+            case State.Idle:
+                UpdateIdleState();
+                break;
+            case State.Chase:
+                UpdateChaseState();
+                break;
+            case State.Attack:
+                UpdateAttackState();
+                break;
         }
     }
 
-    // Follow es un método que mueve al Enemy hacia el Player si la distancia entre ellos es mayor que la distancia mínima (stopDis).
-    public void Follow(Player player)
+    // ----------------- UPDATE STATES --------------------
+
+    public void UpdateIdleState()
     {
-        if (isAttacking)
+        if (m_Target != null)
         {
-            return;
+            m_State = State.Chase;
         }
-        
-        Vector2 dir = Vector2.Normalize(player.pos - pos);
-        Vector2 offset = dir * stopDis;
-        Vector2 dest = player.pos - offset;
+    }
 
-        const float epsilon = 0.3f;
+    public void UpdateChaseState()
+    {
+        Vector2 dir = Vector2.Normalize(m_Target.pos - m_Pos);
+        Vector2 offset = dir * m_StopDis;
+        Vector2 dest = m_Target.pos - offset;
 
-        if (Vector2.Distance(dest, pos) > epsilon)
+        const float EPSILON = 0.3f;
+
+        if (Vector2.Distance(dest, m_Pos) > EPSILON)
         {
-            pos += dir * speed * Raylib.GetFrameTime();
+            m_Pos += dir * speed * Raylib.GetFrameTime();
         }
         else
         {
-            pos = dest;
+            m_Pos = dest;
+            m_State = State.Attack;
         }
     }
 
-    public void Update(Player player)
+    public void UpdateAttackState()
     {
-        if (currentCooldown > 0)
+        void Attack()
         {
-            currentCooldown -= Raylib.GetFrameTime();
+            m_CurrAttackDuration = attackDuration;
+            m_CurrAttackCooldown = attackCooldown;
+
+            // Hacer daño al jugador.
+            m_Target.TakeDamage(attackDamage);
         }
 
-        if (isAttacking)
+        switch (m_AttackState)
         {
-            currentAttackTime -= Raylib.GetFrameTime();
-            if (currentAttackTime <= 0)
-            {
-                isAttacking = false;
-            }
+            case AttackState.Cooldown:
+                break;
         }
-        
-        float distanceToPlayer = Vector2.Distance(pos, player.pos);
-        if (distanceToPlayer <= attackDistance && currentCooldown <= 0 && !isAttacking)
+
+        m_CurrAttackDuration -= Raylib.GetFrameTime();
+
+        if (m_CurrAttackDuration <= 0)
         {
-            // Atacar al Player si está dentro del rango de ataque y no se está atacando.
-            Attack(player);
+            //dedidir si pasamos a idle o seguimos atacando
         }
-        
-        if (!isAttacking)
+
+        if (m_CurrAttackCooldown > 0)
         {
-            // Seguir al Player si no se está atacando.
-            Follow(player);
+            m_CurrAttackCooldown -= Raylib.GetFrameTime();
+        }
+
+        float distanceTom_Target = Vector2.Distance(m_Pos, m_Target.pos);
+        if (distanceTom_Target <= attackDistance && m_CurrAttackCooldown <= 0 && !isAttacking)
+        {
+            // Atacar al m_Target si está dentro del rango de ataque y no se está atacando.
+            Attack();
         }
     }
-    
-    void Attack(Player player)
+
+    // ----------------- DRAW STUFF --------------------
+
+    public void Draw()
     {
-        isAttacking = true;
-        currentAttackTime = attackDuration;
-        currentCooldown = attackCooldown;
-        
-        // Hacer daño al jugador.
-        player.TakeDamage(attackDamage);
+        Raylib.DrawRectangle((int)m_Pos.X, (int)m_Pos.Y, 20, 50, new Color(55, 170, 200, 255));
+
+        DrawHealthBar();
+
+        if (m_State == State.Attack)
+        {
+            DrawSword();
+        }
     }
     
     void DrawHealthBar()
     {
         int barWidth = 60;
         int barHeight = 8;
-        int barX = (int)pos.X - 20;
-        int barY = (int)pos.Y - 15;
+        int barX = (int)m_Pos.X - 20;
+        int barY = (int)m_Pos.Y - 15;
         
         // Fondo rojo de la barra.AAAA
         Raylib.DrawRectangle(barX, barY, barWidth, barHeight, new Color(200, 0, 0, 255));
@@ -111,8 +160,8 @@ public class Enemy
     
     void DrawSword()
     {
-        int swordX = (int)pos.X + 25;
-        int swordY = (int)pos.Y + 10;
+        int swordX = (int)m_Pos.X + 25;
+        int swordY = (int)m_Pos.Y + 10;
         
         // Dibujar la espada como un rectángulo gris.
         Raylib.DrawRectangle(swordX, swordY, 25, 5, Color.Gray);

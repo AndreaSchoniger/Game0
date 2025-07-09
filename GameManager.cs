@@ -17,6 +17,7 @@ public class GameManager
         Raylib.InitWindow(1280, 720, "Pong");
         playerLeft = new Player();
         enemy = new Enemy();
+        enemy.m_Target = playerLeft; // creando una referencia dentro de enemy al player.
         // En la línea anterior se está definiendo e instanciando el class attribute playerLeft, convirtiéndolo en un objeto.
         // Esto nos permite acceder y modificar los atributos y métodos de este objeto a partir de los de la clase Player.
     }
@@ -29,7 +30,7 @@ public class GameManager
         if (playerLeft.IsAlive())
         {
             playerLeft.Move();
-            enemy.Update(playerLeft);
+            enemy.Update();
         }
         else
         {
