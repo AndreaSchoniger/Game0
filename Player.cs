@@ -9,6 +9,11 @@ public class Player
 
     public int maxHealth = 100;
     public int currentHealth = 100;
+    
+    public List<Bullet> bullets = new();
+    float shootCooldown = 0.3f;
+    float shootTimer = 0f;
+    public Vector2 currentDir = new Vector2(0, -1);
 
     public void Draw()
     {
@@ -35,6 +40,7 @@ public class Player
         if (dir.X != 0 || dir.Y != 0)
         {
             dir = Vector2.Normalize(dir);
+            currentDir = dir;
         }
 
         pos += dir * speed * Raylib.GetFrameTime();
@@ -53,6 +59,25 @@ public class Player
         // Barra verde según la vida actual.
         int greenWidth = (int)((float)currentHealth / maxHealth * barWidth);
         Raylib.DrawRectangle(barX, barY, greenWidth, barHeight, new Color(0, 200, 0, 255));
+    }
+    
+    public void UpdateShooting()
+    {
+        shootTimer -= Raylib.GetFrameTime();
+        if (shootTimer <= 0f)
+        {
+            bullets.Add(new Bullet(pos, currentDir));
+            shootTimer = shootCooldown;
+        }
+
+        foreach (var bullet in bullets)
+            bullet.Update();
+    }
+
+    public void DrawBullets()
+    {
+        foreach (var bullet in bullets)
+            bullet.Draw();
     }
 
     public void TakeDamage(int damage)

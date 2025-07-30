@@ -31,6 +31,9 @@ public class GameManager
         {
             playerLeft.Move();
             enemy.Update();
+            
+            playerLeft.UpdateShooting();
+            playerLeft.DrawBullets();
         }
         else
         {

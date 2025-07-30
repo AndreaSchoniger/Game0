@@ -10,17 +10,19 @@ public class Enemy
 
     public enum AttackState
     {
-        Cooldown, // etc...
+        Ready,
+        Attacking,
+        Cooldown
     }
 
     public Player m_Target; // una posible referencia a cualquier m_Target.
 
     public State m_State = State.Idle;
-    public AttackState m_AttackState = AttackState.Cooldown;
+    public AttackState m_AttackState = AttackState.Ready;
     public State m_PrevState = State.Idle;
 
     public Vector2 m_Pos = new(150, 200);
-    float speed = 150; // Un poco más lento que el m_Target.
+    float speed = 100; // Un poco más lento que el m_Target.
     float m_StopDis = 50; // Distancia mínima para dejar de seguir al m_Target.
 
     public int maxHealth = 80;
@@ -37,6 +39,8 @@ public class Enemy
 
     public void Update()
     {
+        CheckBulletCollisions();
+        
         if (m_Target == null)
         {
             m_State = State.Idle;
@@ -46,6 +50,11 @@ public class Enemy
         {
             // hacer cualquier cosa que implique un cambio de estado
             m_PrevState = m_State;
+            
+            if (m_State != State.Attack)
+            {
+                m_AttackState = AttackState.Ready;
+            }
         }
 
         // State machine
@@ -60,6 +69,23 @@ public class Enemy
             case State.Attack:
                 UpdateAttackState();
                 break;
+            case State.Defeat:
+                break;
+        }
+    }
+    
+    void CheckBulletCollisions()
+    {
+        for (int i = m_Target.bullets.Count - 1; i >= 0; i--)
+        {
+            var bullet = m_Target.bullets[i];
+            if (Vector2.Distance(m_Pos, bullet.pos) <= bullet.hitDistance)
+            {
+                if (currentHealth > 0)
+                    TakeDamage(bullet.damage);
+
+                m_Target.bullets.RemoveAt(i);
+            }
         }
     }
 
@@ -67,7 +93,7 @@ public class Enemy
 
     public void UpdateIdleState()
     {
-        if (m_Target != null)
+        if (m_Target != null && currentHealth > 0)
         {
             m_State = State.Chase;
         }
@@ -94,6 +120,8 @@ public class Enemy
 
     public void UpdateAttackState()
     {
+        float distanceToTarget = Vector2.Distance(m_Pos, m_Target.pos);
+        
         void Attack()
         {
             m_CurrAttackDuration = attackDuration;
@@ -105,27 +133,50 @@ public class Enemy
 
         switch (m_AttackState)
         {
+            case AttackState.Ready:
+                if (distanceToTarget <= attackDistance)
+                {
+                    m_AttackState = AttackState.Attacking;
+                    m_CurrAttackDuration = attackDuration;
+                    m_Target.TakeDamage(attackDamage);
+                }
+                else
+                {
+                    m_State = State.Chase;
+                }
+                break;
+
+            case AttackState.Attacking:
+                m_CurrAttackDuration -= Raylib.GetFrameTime();
+                if (m_CurrAttackDuration <= 0)
+                {
+                    m_AttackState = AttackState.Cooldown;
+                    m_CurrAttackCooldown = attackCooldown;
+                }
+                break;
+
             case AttackState.Cooldown:
+                m_CurrAttackCooldown -= Raylib.GetFrameTime();
+                if (m_CurrAttackCooldown <= 0)
+                {
+                    m_AttackState = AttackState.Ready;
+                }
+                // Si el jugador se aleja, volver a perseguirle.
+                if (distanceToTarget > attackDistance)
+                {
+                    m_State = State.Chase;
+                }
                 break;
         }
-
-        m_CurrAttackDuration -= Raylib.GetFrameTime();
-
-        if (m_CurrAttackDuration <= 0)
+    }
+    
+    public void TakeDamage(int damage)
+    {
+        currentHealth -= damage;
+        if (currentHealth < 0)
         {
-            //dedidir si pasamos a idle o seguimos atacando
-        }
-
-        if (m_CurrAttackCooldown > 0)
-        {
-            m_CurrAttackCooldown -= Raylib.GetFrameTime();
-        }
-
-        float distanceTom_Target = Vector2.Distance(m_Pos, m_Target.pos);
-        if (distanceTom_Target <= attackDistance && m_CurrAttackCooldown <= 0 && !isAttacking)
-        {
-            // Atacar al m_Target si está dentro del rango de ataque y no se está atacando.
-            Attack();
+            currentHealth = 0;
+            m_State = State.Defeat;
         }
     }
 
@@ -150,7 +201,7 @@ public class Enemy
         int barX = (int)m_Pos.X - 20;
         int barY = (int)m_Pos.Y - 15;
         
-        // Fondo rojo de la barra.AAAA
+        // Fondo rojo de la barra.
         Raylib.DrawRectangle(barX, barY, barWidth, barHeight, new Color(200, 0, 0, 255));
         
         // Barra verde según la vida actual.
